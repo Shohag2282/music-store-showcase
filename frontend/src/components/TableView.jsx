@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import CoverArt from './CoverArt';
 import MusicPlayer from './MusicPlayer';
+import API_BASE from '../api';
 
 // same hash helpers as the server so likes match exactly
 function hashStringToInt(str) {
@@ -77,7 +78,7 @@ function TableView({ locale, seed, likes }) {
     const load = async () => {
       setLoading(true);
       try {
-        const url = `http://localhost:5000/api/songs?locale=${locale}&seed=${seed}&page=${currentPage}&likes=0`;
+        const url = `${API_BASE}/api/songs?locale=${locale}&seed=${seed}&page=${currentPage}&likes=0`;
         const res = await fetch(url);
         if (res.ok && alive) {
           const data = await res.json();

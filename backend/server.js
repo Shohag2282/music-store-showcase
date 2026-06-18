@@ -7,8 +7,10 @@ const fs = require('fs');
 const path = require('path');
 
 const app = express();
-app.use(cors());
+// allow requests from any device on the local network (phone, tablet, etc.)
+app.use(cors({ origin: '*' }));
 app.use(express.json());
+
 
 // load locale config from external file
 const localesConfig = JSON.parse(
@@ -25,6 +27,12 @@ function getFakerInstance(localeCode) {
   const config = localesConfig[localeCode];
   if (!config) return fakerEn;
   return fakers[config.fakerLocale] || fakerEn;
+}
+
+// capitalizes the first letter of a word
+function cap(str) {
+  if (!str) return str;
+  return str.charAt(0).toUpperCase() + str.slice(1);
 }
 
 // deterministic random number generator using LCG
@@ -90,6 +98,45 @@ const RHYTHM_PATTERNS = [
 
 const INSTRUMENT_TYPES = ['sine', 'triangle', 'square', 'sawtooth'];
 
+// locale-specific word lists because faker.word.* falls back to English for de/uk
+const LOCALE_WORDS = {
+  en: {
+    adj:  ['Silent', 'Golden', 'Broken', 'Wild', 'Electric', 'Burning', 'Lost', 'Dark', 'Sweet', 'Hollow', 'Frozen', 'Neon', 'Endless', 'Faded', 'Velvet'],
+    noun: ['Road', 'Heart', 'Sky', 'Dream', 'Fire', 'Soul', 'Rain', 'Light', 'Wave', 'Storm', 'Night', 'Ghost', 'River', 'City', 'Shadow'],
+    verb: ['Run', 'Fall', 'Rise', 'Chase', 'Burn', 'Fade', 'Fly', 'Break', 'Float', 'Drift', 'Shine', 'Bleed', 'Breathe', 'Howl', 'Scream'],
+    prep: ['Through', 'Beyond', 'Beneath', 'Within', 'Under', 'Above', 'Across', 'Into'],
+    album: ['Midnight Echoes', 'Broken Wings', 'Golden Hour', 'Neon Dreams', 'Silent Storm', 'Endless Sky', 'Dark Horizon', 'Velvet Thunder', 'Lost Signals', 'Electric Soul'],
+  },
+  de: {
+    adj:  ['Stille', 'Goldene', 'Gebrochene', 'Wilde', 'Brennende', 'Verlorene', 'Dunkle', 'Süße', 'Ewige', 'Gefrorene', 'Leuchtende', 'Ferne', 'Tiefe', 'Blaue', 'Rote'],
+    noun: ['Straße', 'Herz', 'Himmel', 'Traum', 'Feuer', 'Seele', 'Regen', 'Licht', 'Welle', 'Sturm', 'Nacht', 'Geist', 'Fluss', 'Stadt', 'Schatten'],
+    verb: ['Laufen', 'Fallen', 'Steigen', 'Jagen', 'Brennen', 'Verblassen', 'Fliegen', 'Brechen', 'Treiben', 'Leuchten', 'Schreien', 'Atmen', 'Tanzen', 'Weinen', 'Träumen'],
+    prep: ['Durch', 'Jenseits', 'Unter', 'Über', 'Innerhalb', 'Entlang', 'Zwischen', 'Hinter'],
+    album: ['Mitternacht', 'Gebrochene Flügel', 'Goldene Stunde', 'Neon Träume', 'Stiller Sturm', 'Endloser Himmel', 'Dunkler Horizont', 'Samtiger Donner', 'Verlorene Signale', 'Elektrische Seele'],
+  },
+  uk: {
+    adj:  ['Тиха', 'Золота', 'Зламана', 'Дика', 'Палаюча', 'Загублена', 'Темна', 'Солодка', 'Вічна', 'Крижана', 'Яскрава', 'Далека', 'Глибока', 'Синя', 'Червона'],
+    noun: ['Дорога', 'Серце', 'Небо', 'Мрія', 'Вогонь', 'Душа', 'Дощ', 'Світло', 'Хвиля', 'Буря', 'Ніч', 'Привид', 'Річка', 'Місто', 'Тінь'],
+    verb: ['Бігти', 'Падати', 'Підніматись', 'Горіти', 'Зникати', 'Летіти', 'Ламати', 'Сяяти', 'Кричати', 'Дихати', 'Танцювати', 'Плакати', 'Мріяти', 'Шукати', 'Йти'],
+    prep: ['Через', 'За', 'Під', 'Над', 'Між', 'Крізь', 'Вздовж', 'Поза'],
+    album: ['Опівніч', 'Зламані крила', 'Золота година', 'Неонові мрії', 'Тиха буря', 'Нескінченне небо', 'Темний горизонт', 'Оксамитовий грім', 'Загублені сигнали', 'Електрична душа'],
+  },
+};
+
+// picks a random element from an array using our deterministic rng
+function pick(arr, rng) {
+  return arr[Math.floor(rng() * arr.length)];
+}
+
+// builds a locale-aware song title
+function makeSongTitle(words, rng) {
+  const pattern = Math.floor(rng() * 4);
+  if (pattern === 0) return `${pick(words.adj, rng)} ${pick(words.noun, rng)}`;
+  if (pattern === 1) return `${pick(words.verb, rng)} ${pick(words.noun, rng)}`;
+  if (pattern === 2) return `${pick(words.noun, rng)} ${pick(words.prep, rng)} ${pick(words.noun, rng)}`;
+  return `${pick(words.adj, rng)} ${pick(words.noun, rng)} ${pick(words.noun, rng)}`;
+}
+
 // available visual styles for cover art
 const COVER_STYLES = [
   'vinyl',
@@ -140,18 +187,24 @@ app.get('/api/songs', (req, res) => {
     // seed faker for this song
     fakerInstance.seed(contentSeed);
 
-    // song metadata
-    const songTitle = fakerInstance.music.songName();
+    // use locale-specific word lists for title, band name, album
+    const localeKey = localesConfig[localeParam]?.fakerLocale || 'en';
+    const words = LOCALE_WORDS[localeKey] || LOCALE_WORDS.en;
+
+    // song title from locale word list
+    const songTitle = makeSongTitle(words, contentRng);
+
+    // genres are international terms so we keep them in English
     const genre = fakerInstance.music.genre();
 
+    // artist: either a locale-specific full name or a locale word-based band name
     const personalName = fakerInstance.person.fullName();
-    const adjective = fakerInstance.word.adjective();
-    const noun = fakerInstance.word.noun();
-    const bandName = `${adjective.charAt(0).toUpperCase() + adjective.slice(1)} ${noun.charAt(0).toUpperCase() + noun.slice(1)}s`;
+    const bandName = `${pick(words.adj, contentRng)} ${pick(words.noun, contentRng)}s`;
     const artist = contentRng() > 0.5 ? personalName : bandName;
 
+    // album: either 'Single' or a locale-specific album phrase
     const isSingle = contentRng() > 0.6;
-    const album = isSingle ? 'Single' : fakerInstance.word.words({ count: { min: 2, max: 4 } });
+    const album = isSingle ? 'Single' : pick(words.album, contentRng);
 
     // probabilistic likes: fractional part decides if we round up
     let finalLikes = Math.floor(likesParam);

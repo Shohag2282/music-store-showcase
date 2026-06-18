@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import API_BASE from '../api';
 
 // toolbar with all the filter/config controls
 function ToolBar({ locale, setLocale, seed, setSeed, likes, setLikes, viewMode, setViewMode }) {
@@ -8,7 +9,7 @@ function ToolBar({ locale, setLocale, seed, setSeed, likes, setLikes, viewMode, 
 
   // fetch supported locales from backend on mount
   useEffect(() => {
-    fetch('http://localhost:5000/api/locales')
+    fetch(`${API_BASE}/api/locales`)
       .then(res => res.json())
       .then(data => setAvailableLocales(data))
       .catch(() => {});

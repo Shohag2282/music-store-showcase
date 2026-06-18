@@ -913,22 +913,210 @@
 }
 
 /* ===== RESPONSIVE ===== */
-@media (max-width: 768px) {
+
+/* tablet */
+@media (max-width: 1024px) {
   .top-header {
-    flex-direction: column;
-    align-items: flex-start;
-    padding: 12px 16px;
+    flex-wrap: wrap;
+    gap: 12px;
+    padding: 12px 20px;
   }
   .toolbar {
+    flex-wrap: wrap;
     gap: 10px;
   }
-  .main-content {
-    padding: 12px;
+  .modal-card {
+    max-width: 95vw;
+    padding: 20px;
   }
+  .gallery-grid {
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)) !important;
+  }
+}
+
+/* mobile */
+@media (max-width: 768px) {
+  /* header */
+  .top-header {
+    flex-direction: column;
+    align-items: stretch;
+    padding: 10px 12px;
+    gap: 10px;
+  }
+  .header-brand {
+    justify-content: flex-start;
+  }
+  .brand-title {
+    font-size: 15px;
+  }
+  .brand-logo {
+    width: 36px;
+    height: 36px;
+    font-size: 18px;
+  }
+
+  /* toolbar stacks vertically */
+  .toolbar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+    width: 100%;
+  }
+  .toolbar-group {
+    width: 100%;
+  }
+  .toolbar-select,
+  .toolbar-input {
+    width: 100% !important;
+    box-sizing: border-box;
+  }
+  .toolbar-row {
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .likes-slider {
+    flex: 1;
+    min-width: 80px;
+  }
+  .btn {
+    font-size: 11px;
+    padding: 0 10px;
+  }
+  .btn-primary {
+    flex: 1;
+  }
+  .view-toggle {
+    width: 100%;
+    display: flex;
+  }
+  .view-toggle-btn {
+    flex: 1;
+    text-align: center;
+  }
+
+  /* main content */
+  .main-content {
+    padding: 10px;
+  }
+
+  /* table — hide less important columns on small screens */
+  .data-table thead th:nth-child(3),
+  .data-table tbody td:nth-child(3) {
+    display: none; /* hide Artist column */
+  }
+  .data-table thead th:nth-child(4),
+  .data-table tbody td:nth-child(4) {
+    display: none; /* hide Album column */
+  }
+  .data-table tbody td {
+    padding: 10px 8px;
+    font-size: 12px;
+  }
+  .data-table thead th {
+    padding: 10px 8px;
+    font-size: 10px;
+  }
+  .song-index {
+    width: 30px;
+    font-size: 11px;
+  }
+  .table-container {
+    border-radius: 10px;
+  }
+
+  /* expanded row stacks vertically */
   .expanded-inner {
     flex-direction: column;
+    gap: 14px;
+  }
+  .expanded-details {
+    min-width: unset;
+    width: 100%;
+  }
+  .lyrics-container {
+    width: 100%;
+    height: 160px;
+  }
+
+  /* pagination */
+  .pagination {
+    flex-direction: column;
+    gap: 10px;
+    align-items: center;
+    padding: 12px 10px;
+  }
+
+  /* gallery grid — 2 columns on phone */
+  .gallery-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 10px !important;
+  }
+  .gallery-card-body {
+    padding: 9px 10px 8px;
+  }
+  .gallery-card-title {
+    font-size: 12px;
+  }
+  .gallery-card-artist {
+    font-size: 11px;
+  }
+  .gallery-card-album {
+    display: none; /* hide album on very small screens */
+  }
+  .fullscreen-gallery {
+    padding: 0;
+  }
+
+  /* modal — full screen on mobile */
+  .modal-overlay {
+    padding: 0;
+    align-items: flex-end;
+  }
+  .modal-card {
+    border-radius: 20px 20px 0 0;
+    max-height: 92vh;
+    padding: 20px 16px;
+    width: 100%;
+    max-width: 100%;
+  }
+  .modal-body {
+    flex-direction: column;
+    gap: 14px;
+  }
+  .modal-details {
+    min-width: unset;
+    width: 100%;
+  }
+  .modal-title {
+    font-size: 18px;
   }
   .lyrics-container {
     width: 100%;
   }
+
+  /* music player — wrap on small screens */
+  .player-container {
+    flex-wrap: wrap;
+    max-width: 100% !important;
+    gap: 8px;
+    padding: 8px 10px;
+  }
+  .wave-canvas {
+    width: 100px;
+  }
 }
+
+/* very small phones */
+@media (max-width: 400px) {
+  .gallery-grid {
+    grid-template-columns: 1fr !important; /* 1 column on tiny screens */
+  }
+  .data-table thead th:nth-child(5),
+  .data-table tbody td:nth-child(5) {
+    display: none; /* also hide Genre on tiny screens */
+  }
+  .brand-title {
+    font-size: 13px;
+  }
+}
+
