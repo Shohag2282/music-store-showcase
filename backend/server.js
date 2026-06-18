@@ -378,6 +378,14 @@ app.get('/api/songs', (req, res) => {
   return res.json(responseSongs);
 });
 
+// Serve static files from the frontend build directory
+app.use(express.static(path.join(__dirname, '../frontend/dist')));
+
+// Fallback to index.html for all other routes (for React frontend routing)
+app.get('*', (req, res) => {
+  res.sendFile(path.join(__dirname, '../frontend/dist/index.html'));
+});
+
 // start the server
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
