@@ -1,0 +1,14 @@
+{
+  "en": {
+    "name": "English (USA)",
+    "fakerLocale": "en"
+  },
+  "de": {
+    "name": "German (Germany)",
+    "fakerLocale": "de"
+  },
+  "uk": {
+    "name": "Ukrainian (Ukraine)",
+    "fakerLocale": "uk"
+  }
+}
