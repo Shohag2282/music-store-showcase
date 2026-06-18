@@ -382,8 +382,28 @@ app.get('/api/songs', (req, res) => {
 app.use(express.static(path.join(__dirname, '../frontend/dist')));
 
 // Fallback to index.html for all other routes (for React frontend routing)
-app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, '../frontend/dist/index.html'));
+app.get('/{*splat}', (req, res) => {
+  const indexPath = path.join(__dirname, '../frontend/dist/index.html');
+  if (fs.existsSync(indexPath)) {
+    res.sendFile(indexPath);
+  } else {
+    res.status(200).send(`
+      <div style="font-family: sans-serif; padding: 2rem; max-width: 600px; margin: 0 auto; line-height: 1.6;">
+        <h2 style="color: #e53e3e;">Frontend Build Not Found</h2>
+        <p>The backend is running, but the frontend files have not been built yet.</p>
+        <p><strong>To view the app locally:</strong></p>
+        <ol>
+          <li>Run the Vite development server in the <code>frontend</code> folder: <code>npm run dev</code></li>
+          <li>Open <a href="http://localhost:5173" target="_blank">http://localhost:5173</a> in your browser.</li>
+        </ol>
+        <p><strong>To prepare for Render deployment:</strong></p>
+        <ol>
+          <li>Run <code>cd frontend && npm run build</code> to compile the frontend.</li>
+          <li>After compiling, refresh this page (<a href="http://localhost:5000">http://localhost:5000</a>).</li>
+        </ol>
+      </div>
+    `);
+  }
 });
 
 // start the server
