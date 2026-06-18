@@ -1,0 +1,17 @@
+{
+  "name": "music-store-showcase-root",
+  "version": "1.0.0",
+  "description": "SoundStore Showcase - Music Store Showcase Root",
+  "main": "backend/server.js",
+  "scripts": {
+    "install-frontend": "cd frontend && npm install",
+    "install-backend": "cd backend && npm install",
+    "build-frontend": "cd frontend && npm run build",
+    "build": "npm run install-frontend && npm run build-frontend && npm run install-backend",
+    "start": "node backend/server.js"
+  },
+  "dependencies": {},
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
