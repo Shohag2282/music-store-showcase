@@ -147,6 +147,10 @@ const COVER_STYLES = [
   'organic',
   'retro',
   'minimal',
+  'nature',
+  'cityscape',
+  'people',
+  'skyline',
 ];
 
 // returns list of supported locales
@@ -264,11 +268,34 @@ app.get('/api/songs', (req, res) => {
     const patternDensity = 3 + Math.floor(contentRng() * 8);
     const shapeCount = 4 + Math.floor(contentRng() * 12);
 
+    const typographyStyles = ['classic', 'minimal', 'neon', 'handwritten', 'bold'];
+    let typographyStyle = typographyStyles[Math.floor(contentRng() * typographyStyles.length)];
+    if (coverStyle === 'minimal') typographyStyle = 'minimal';
+    else if (coverStyle === 'retro') typographyStyle = 'neon';
+    else if (coverStyle === 'nature') typographyStyle = 'handwritten';
+    else if (coverStyle === 'cityscape') typographyStyle = 'bold';
+    else if (coverStyle === 'people') typographyStyle = 'classic';
+
+    // unique picsum photo seed (1–999) — drives the real background photo
+    const picsumSeed = 1 + Math.floor(contentRng() * 999);
+
     // extra shape descriptors for the canvas renderer
     const shapes = [];
+    const baseShapeTypes = ['circle', 'rect', 'triangle', 'arc', 'line', 'ellipse'];
+    let themeShapeTypes = [...baseShapeTypes];
+    if (coverStyle === 'nature') {
+      themeShapeTypes = ['flower', 'cloud', 'flower', 'cloud', 'circle', 'line'];
+    } else if (coverStyle === 'cityscape') {
+      themeShapeTypes = ['car', 'cloud', 'rect', 'rect', 'line', 'circle'];
+    } else if (coverStyle === 'people') {
+      themeShapeTypes = ['person', 'flower', 'circle', 'arc', 'ellipse'];
+    } else if (coverStyle === 'skyline') {
+      themeShapeTypes = ['cloud', 'triangle', 'triangle', 'circle', 'line'];
+    }
+
     for (let s = 0; s < shapeCount; s++) {
       shapes.push({
-        type: ['circle', 'rect', 'triangle', 'arc', 'line', 'ellipse'][Math.floor(contentRng() * 6)],
+        type: themeShapeTypes[Math.floor(contentRng() * themeShapeTypes.length)],
         x: contentRng(),
         y: contentRng(),
         size: 0.05 + contentRng() * 0.3,
@@ -371,6 +398,8 @@ app.get('/api/songs', (req, res) => {
         patternDensity,
         shapeCount,
         shapes,
+        typographyStyle,
+        picsumSeed,
       },
     });
   }
