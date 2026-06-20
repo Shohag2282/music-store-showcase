@@ -425,11 +425,6 @@ app.get('/{*splat}', (req, res) => {
           <li>Run the Vite development server in the <code>frontend</code> folder: <code>npm run dev</code></li>
           <li>Open <a href="http://localhost:5173" target="_blank">http://localhost:5173</a> in your browser.</li>
         </ol>
-        <p><strong>To prepare for Render deployment:</strong></p>
-        <ol>
-          <li>Run <code>cd frontend && npm run build</code> to compile the frontend.</li>
-          <li>After compiling, refresh this page (<a href="http://localhost:5000">http://localhost:5000</a>).</li>
-        </ol>
       </div>
     `);
   }
@@ -440,3 +435,5 @@ const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
   console.log(`SoundStore Backend running on port ${PORT}`);
 });
+
+module.exports = app;
