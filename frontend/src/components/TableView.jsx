@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import CoverArt from './CoverArt';
 import MusicPlayer from './MusicPlayer';
 import API_BASE from '../api';
+import { usePlayback } from '../context/PlaybackContext';
 
 // same hash helpers as the server so likes match exactly
 function hashStringToInt(str) {
@@ -44,6 +45,7 @@ function TableView({ locale, seed, likes }) {
   const [playProgress, setPlayProgress] = useState(0);
   const [isPlaying, setIsPlaying]       = useState(false);
   const lyricsRef = useRef(null);
+  const { stopSong } = usePlayback();
 
   // likes are computed client-side so no extra fetch is needed
   const songs = useMemo(
@@ -70,7 +72,16 @@ function TableView({ locale, seed, likes }) {
     setExpandedId(null);
     setPlayProgress(0);
     setIsPlaying(false);
-  }, [locale, seed]);
+    stopSong();
+  }, [locale, seed, stopSong]);
+
+  // stop song and reset expanded state on page change
+  useEffect(() => {
+    setExpandedId(null);
+    setPlayProgress(0);
+    setIsPlaying(false);
+    stopSong();
+  }, [currentPage, stopSong]);
 
   // fetch current page of songs
   useEffect(() => {
@@ -97,6 +108,9 @@ function TableView({ locale, seed, likes }) {
   const handleRowClick = (id) => {
     setPlayProgress(0);
     setIsPlaying(false);
+    if (expandedId === id) {
+      stopSong();
+    }
     setExpandedId(prev => prev === id ? null : id);
   };
 
@@ -181,6 +195,7 @@ function TableView({ locale, seed, likes }) {
                                 </div>
 
                                 <MusicPlayer
+                                  song={song}
                                   audioMeta={song.audioMeta}
                                   onProgress={setPlayProgress}
                                   onPlayingChange={setIsPlaying}

@@ -1,47 +1,33 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useEffect, useRef } from 'react';
+import { usePlayback } from '../context/PlaybackContext';
 
-function MusicPlayer({ audioMeta, onProgress, onPlayingChange }) {
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [progress, setProgress] = useState(0);
-  const [volume, setVolume] = useState(0.7);
-  const [currentTimeText, setCurrentTimeText] = useState('0:00');
-  const [durationText, setDurationText] = useState('0:30');
+function MusicPlayer({ song, audioMeta, onProgress, onPlayingChange }) {
+  const {
+    currentSong,
+    isPlaying: globalIsPlaying,
+    progress: globalProgress,
+    volume,
+    setVolume,
+    currentTimeText,
+    durationText,
+    toggleSong,
+  } = usePlayback();
 
-  const audioCtxRef = useRef(null);
-  const volumeGainNodeRef = useRef(null);
-  const activeSourcesRef = useRef([]);
-  const animationFrameRef = useRef(null);
-  const startTimeRef = useRef(0);
+  // Check if this specific player instance is the active one
+  const isActive = !!(currentSong && song && currentSong.index === song.index);
+
+  const isPlaying = isActive && globalIsPlaying;
+  const progress = isActive ? globalProgress : 0;
+  const displayCurrentTime = isActive ? currentTimeText : '0:00';
+
   const visualizerCanvasRef = useRef(null);
 
-  // sync volume to gain node when slider changes
-  useEffect(() => {
-    if (volumeGainNodeRef.current && audioCtxRef.current) {
-      volumeGainNodeRef.current.gain.setValueAtTime(volume, audioCtxRef.current.currentTime);
-    }
-  }, [volume]);
-
-  // clean up when component unmounts
-  useEffect(() => {
-    return () => {
-      stopPlayback();
-    };
-  }, []);
-
+  // Calculate standard duration text when not active
   const {
     tempo = 120,
-    rootNoteIdx = 0,
-    scaleIntervals = [0, 2, 4, 5, 7, 9, 11],
-    progression = [0, 4, 5, 3],
-    melodyInstrument = 'sine',
-    bassInstrument = 'triangle',
-    padInstrument = 'sine',
-    melodyNotes = [],
-    bassNotes = [],
     numBars = 4,
     timeSignature = 4,
   } = audioMeta || {};
-
   const beatDuration = 60 / tempo;
   const totalBeats = numBars * timeSignature;
   const totalDuration = totalBeats * beatDuration;
@@ -52,182 +38,25 @@ function MusicPlayer({ audioMeta, onProgress, onPlayingChange }) {
     return `${m}:${s < 10 ? '0' : ''}${s}`;
   };
 
-  const startPlayback = () => {
-    stopPlayback();
+  const displayDuration = isActive ? durationText : formatTime(totalDuration);
 
-    const AudioContext = window.AudioContext || window.webkitAudioContext;
-    if (!AudioContext) return;
-
-    const ctx = new AudioContext();
-    audioCtxRef.current = ctx;
-    startTimeRef.current = ctx.currentTime;
-
-    // master volume node
-    const volGain = ctx.createGain();
-    volGain.gain.setValueAtTime(volume, ctx.currentTime);
-    volGain.connect(ctx.destination);
-    volumeGainNodeRef.current = volGain;
-
-    const baseMidi = 60 + rootNoteIdx;
-    const activeSources = [];
-
-    // track 1: chord pads
-    const barDuration = timeSignature * beatDuration;
-    for (let bar = 0; bar < numBars; bar++) {
-      const chordDeg = progression[bar % progression.length];
-      const chordStartTime = bar * barDuration;
-      const chordDuration = barDuration * 0.95;
-
-      const rootMidi = baseMidi + scaleIntervals[chordDeg % scaleIntervals.length] - 12;
-      const thirdMidi = baseMidi + scaleIntervals[(chordDeg + 2) % scaleIntervals.length];
-      const fifthMidi = baseMidi + scaleIntervals[(chordDeg + 4) % scaleIntervals.length];
-
-      [rootMidi, thirdMidi, fifthMidi].forEach((midiNote) => {
-        const osc = ctx.createOscillator();
-        const gainNode = ctx.createGain();
-        const freq = 440 * Math.pow(2, (midiNote - 69) / 12);
-
-        osc.type = padInstrument;
-        osc.frequency.value = freq;
-
-        gainNode.gain.setValueAtTime(0, ctx.currentTime);
-        gainNode.gain.linearRampToValueAtTime(0.04, ctx.currentTime + chordStartTime + 0.4);
-        gainNode.gain.setValueAtTime(0.04, ctx.currentTime + chordStartTime + chordDuration - 0.4);
-        gainNode.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + chordStartTime + chordDuration);
-
-        osc.connect(gainNode);
-        gainNode.connect(volGain);
-
-        osc.start(ctx.currentTime + chordStartTime);
-        osc.stop(ctx.currentTime + chordStartTime + chordDuration);
-        activeSources.push(osc);
-      });
+  // Sync callbacks to parent components for legacy lyric highlight functionality
+  useEffect(() => {
+    if (onPlayingChange) {
+      onPlayingChange(isPlaying);
     }
+  }, [isPlaying, onPlayingChange]);
 
-    // track 2: bass line
-    let currentBassBeat = 0;
-    bassNotes.forEach((note) => {
-      if (currentBassBeat >= totalBeats) return;
-
-      const startTime = currentBassBeat * beatDuration;
-      const noteDuration = note.duration * beatDuration;
-
-      const chordRootDeg = progression[note.chordIdx % progression.length];
-      const midiNote = baseMidi + scaleIntervals[chordRootDeg % scaleIntervals.length] - 24 + (note.octave * 12);
-      const freq = 440 * Math.pow(2, (midiNote - 69) / 12);
-
-      const osc = ctx.createOscillator();
-      const gainNode = ctx.createGain();
-
-      osc.type = bassInstrument;
-      osc.frequency.value = freq;
-
-      gainNode.gain.setValueAtTime(0, ctx.currentTime);
-      gainNode.gain.linearRampToValueAtTime(0.12, ctx.currentTime + startTime + 0.02);
-      gainNode.gain.setValueAtTime(0.12, ctx.currentTime + startTime + noteDuration - 0.05);
-      gainNode.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + startTime + noteDuration);
-
-      osc.connect(gainNode);
-      gainNode.connect(volGain);
-
-      osc.start(ctx.currentTime + startTime);
-      osc.stop(ctx.currentTime + startTime + noteDuration);
-      activeSources.push(osc);
-
-      currentBassBeat += note.duration;
-    });
-
-    // track 3: melody
-    let currentMelodyBeat = 0;
-    melodyNotes.forEach((note) => {
-      if (currentMelodyBeat >= totalBeats) return;
-
-      const startTime = currentMelodyBeat * beatDuration;
-      const noteDuration = note.duration * beatDuration;
-
-      const midiNote = baseMidi + scaleIntervals[note.degree % scaleIntervals.length] + (note.octave * 12);
-      const freq = 440 * Math.pow(2, (midiNote - 69) / 12);
-
-      const osc = ctx.createOscillator();
-      const gainNode = ctx.createGain();
-      const filter = ctx.createBiquadFilter();
-
-      if (melodyInstrument === 'sawtooth' || melodyInstrument === 'square') {
-        filter.type = 'lowpass';
-        filter.frequency.value = 1100;
-      } else {
-        filter.type = 'allpass';
-      }
-
-      osc.type = melodyInstrument;
-      osc.frequency.value = freq;
-
-      const vol = 0.07 * (note.velocity || 1.0);
-
-      gainNode.gain.setValueAtTime(0, ctx.currentTime);
-      gainNode.gain.linearRampToValueAtTime(vol, ctx.currentTime + startTime + 0.02);
-      gainNode.gain.setValueAtTime(vol, ctx.currentTime + startTime + noteDuration - 0.04);
-      gainNode.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + startTime + noteDuration);
-
-      osc.connect(filter);
-      filter.connect(gainNode);
-      gainNode.connect(volGain);
-
-      osc.start(ctx.currentTime + startTime);
-      osc.stop(ctx.currentTime + startTime + noteDuration);
-      activeSources.push(osc);
-
-      currentMelodyBeat += note.duration;
-    });
-
-    activeSourcesRef.current = activeSources;
-    setIsPlaying(true);
-    if (onPlayingChange) onPlayingChange(true);
-    setDurationText(formatTime(totalDuration));
-
-    const updateProgress = () => {
-      if (!ctx || ctx.state === 'closed') return;
-      const elapsed = ctx.currentTime - startTimeRef.current;
-      const ratio = elapsed / totalDuration;
-
-      if (ratio >= 1.0) {
-        startPlayback(); // loop back to start
-      } else {
-        setProgress(ratio);
-        if (onProgress) onProgress(ratio);
-        setCurrentTimeText(formatTime(elapsed));
-        animationFrameRef.current = requestAnimationFrame(updateProgress);
-      }
-    };
-    animationFrameRef.current = requestAnimationFrame(updateProgress);
-  };
-
-  const stopPlayback = () => {
-    if (animationFrameRef.current) {
-      cancelAnimationFrame(animationFrameRef.current);
+  useEffect(() => {
+    if (onProgress) {
+      onProgress(progress);
     }
-    activeSourcesRef.current.forEach((src) => {
-      try { src.stop(); } catch (e) {}
-    });
-    activeSourcesRef.current = [];
-    if (audioCtxRef.current) {
-      try { audioCtxRef.current.close(); } catch (e) {}
-      audioCtxRef.current = null;
-    }
-    setIsPlaying(false);
-    if (onPlayingChange) onPlayingChange(false);
-    setProgress(0);
-    if (onProgress) onProgress(0);
-    setCurrentTimeText('0:00');
-  };
+  }, [progress, onProgress]);
 
-  const togglePlay = (e) => {
+  const handleToggle = (e) => {
     e.stopPropagation();
-    if (isPlaying) {
-      stopPlayback();
-    } else {
-      startPlayback();
-    }
+    if (!song) return;
+    toggleSong(song);
   };
 
   // canvas waveform animation
@@ -299,7 +128,7 @@ function MusicPlayer({ audioMeta, onProgress, onPlayingChange }) {
       {/* play/pause button */}
       <button 
         className={`btn-play ${isPlaying ? 'playing' : ''}`}
-        onClick={togglePlay}
+        onClick={handleToggle}
         style={{
           width: '38px',
           height: '38px',
@@ -327,7 +156,7 @@ function MusicPlayer({ audioMeta, onProgress, onPlayingChange }) {
 
       {/* current time / total duration */}
       <div style={{ fontSize: '11px', color: 'var(--text-muted)', minWidth: '55px', textAlign: 'center' }}>
-        {currentTimeText} / {durationText}
+        {displayCurrentTime} / {displayDuration}
       </div>
 
       {/* volume slider */}

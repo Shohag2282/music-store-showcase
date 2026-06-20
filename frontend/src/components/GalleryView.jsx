@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import CoverArt from './CoverArt';
 import MusicPlayer from './MusicPlayer';
 import API_BASE from '../api';
+import { usePlayback } from '../context/PlaybackContext';
 
 // helper: converts a string to a stable integer hash
 function hashStringToInt(str) {
@@ -90,6 +91,7 @@ function GalleryModal({ song, onClose }) {
             </div>
 
             <MusicPlayer
+              song={song}
               audioMeta={song.audioMeta}
               onProgress={setProgress}
               onPlayingChange={setPlaying}
@@ -133,94 +135,12 @@ function GalleryModal({ song, onClose }) {
 
 // single gallery card with inline play button
 function GalleryCard({ song, onOpen }) {
-  const [isPlaying, setIsPlaying] = useState(false);
-  const ctxRef  = useRef(null);
-  const srcsRef = useRef([]);
+  const { currentSong, isPlaying, toggleSong } = usePlayback();
+  const isThisSongPlaying = isPlaying && currentSong && currentSong.index === song.index;
 
-  // stop audio when component unmounts
-  useEffect(() => () => stopAudio(), []);
-
-  function stopAudio() {
-    srcsRef.current.forEach(s => { try { s.stop(); } catch(e) {} });
-    srcsRef.current = [];
-    if (ctxRef.current) { try { ctxRef.current.close(); } catch(e) {} ctxRef.current = null; }
-    setIsPlaying(false);
-  }
-
-  function togglePlay(e) {
+  function handlePlayClick(e) {
     e.stopPropagation();
-    if (isPlaying) { stopAudio(); return; }
-
-    const { audioMeta } = song;
-    if (!audioMeta) return;
-
-    const AC = window.AudioContext || window.webkitAudioContext;
-    if (!AC) return;
-    const ctx = new AC();
-    ctxRef.current = ctx;
-
-    const {
-      tempo = 120, rootNoteIdx = 0,
-      scaleIntervals = [0,2,4,5,7,9,11],
-      progression = [0,4,5,3],
-      melodyInstrument = 'sine',
-      melodyNotes = [],
-      numBars = 4, timeSignature = 4,
-    } = audioMeta;
-
-    const beat = 60 / tempo;
-    const bar  = timeSignature * beat;
-    const base = 60 + rootNoteIdx;
-    const srcs = [];
-
-    const master = ctx.createGain();
-    master.gain.value = 0.7;
-    master.connect(ctx.destination);
-
-    // play chord pads for each bar
-    for (let b = 0; b < numBars; b++) {
-      const deg = progression[b % progression.length];
-      const t = b * bar, d = bar * 0.92;
-      [0,2,4].forEach(off => {
-        const midi = base + scaleIntervals[(deg+off) % scaleIntervals.length] - 12;
-        const freq = 440 * Math.pow(2, (midi-69)/12);
-        const osc = ctx.createOscillator(), g = ctx.createGain();
-        osc.type = 'sine'; osc.frequency.value = freq;
-        g.gain.setValueAtTime(0, ctx.currentTime);
-        g.gain.linearRampToValueAtTime(0.04, ctx.currentTime + t + 0.3);
-        g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + t + d);
-        osc.connect(g); g.connect(master);
-        osc.start(ctx.currentTime + t);
-        osc.stop(ctx.currentTime + t + d);
-        srcs.push(osc);
-      });
-    }
-
-    // play melody notes on top
-    let mb = 0;
-    melodyNotes.slice(0, 20).forEach(note => {
-      if (mb >= numBars * timeSignature) return;
-      const t = mb * beat, d = note.duration * beat * 0.9;
-      const midi = base + scaleIntervals[note.degree % scaleIntervals.length] + note.octave * 12;
-      const freq = 440 * Math.pow(2, (midi-69)/12);
-      const osc = ctx.createOscillator(), g = ctx.createGain();
-      osc.type = melodyInstrument; osc.frequency.value = freq;
-      g.gain.setValueAtTime(0, ctx.currentTime);
-      g.gain.linearRampToValueAtTime(0.08 * (note.velocity||0.7), ctx.currentTime + t + 0.01);
-      g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + t + d);
-      osc.connect(g); g.connect(master);
-      osc.start(ctx.currentTime + t);
-      osc.stop(ctx.currentTime + t + d);
-      srcs.push(osc);
-      mb += note.duration;
-    });
-
-    srcsRef.current = srcs;
-    setIsPlaying(true);
-
-    // stop automatically when playback ends
-    const total = numBars * timeSignature * beat;
-    setTimeout(() => { if (ctxRef.current === ctx) stopAudio(); }, (total + 0.5) * 1000);
+    toggleSong(song);
   }
 
   return (
@@ -242,10 +162,10 @@ function GalleryCard({ song, onOpen }) {
         <div className="gallery-card-footer">
           <span className="genre-badge" style={{ fontSize: '10px', padding: '2px 8px' }}>{song.genre}</span>
           <button
-            className={`btn-gallery-play ${isPlaying ? 'playing' : ''}`}
-            onClick={togglePlay}
+            className={`btn-gallery-play ${isThisSongPlaying ? 'playing' : ''}`}
+            onClick={handlePlayClick}
           >
-            {isPlaying ? '■ Stop' : '▶ Play'}
+            {isThisSongPlaying ? '■ Stop' : '▶ Play'}
           </button>
         </div>
       </div>
@@ -261,6 +181,7 @@ function GalleryView({ locale, seed, likes, isSidebar = false }) {
   const [selected, setSelected]   = useState(null);
   const sentinelRef = useRef(null);
   const fetchingRef = useRef(false);
+  const { stopSong } = usePlayback();
 
   // likes are recalculated client-side so no extra network call needed
   const songs = useMemo(
@@ -274,7 +195,8 @@ function GalleryView({ locale, seed, likes, isSidebar = false }) {
     setPage(1);
     setSelected(null);
     fetchingRef.current = false;
-  }, [locale, seed]);
+    stopSong();
+  }, [locale, seed, stopSong]);
 
   // fetch one page of songs (likes=0 because client computes them)
   useEffect(() => {
